@@ -6,10 +6,19 @@
 
 -- Notes
 --  #1 make sure you use `kafka:2181` for linking to kafka docker
---  #2 don't use `localhost:9200` for ES connection; see below
+--  #2 don't use `localhost:9200` for ES connection; see below. We
+--    use ipconfig to find the IP address 192.168.56.1
+--    consider using the @IPAddress='192.168.56.1' as local var
 
 -- source connection
-DROP TABLE user_behavior;
+-- DROP TABLE user_behavior;
+-- source data from user_behavior.log in the datagen docker, 54M
+-- https://github.com/garyfeng/flink-sql-submit/blob/master/src/main/resources/user_behavior.log
+-- docker run jark/datagen:0.1 head /opt/datagen/user_behavior.log
+--   782827,3335233,1080785,pv,1511712207
+--   966696,2018032,2920476,buy,1511712207
+--   108016,483057,1868423,pv,1511712207
+--   ...
 
 CREATE TABLE user_behavior (
     user_id BIGINT,
@@ -29,11 +38,11 @@ CREATE TABLE user_behavior (
     'format.type' = 'json'
 );
 
-SELECT * FROM user_behavior; 
+-- SELECT * FROM user_behavior; 
 
 
 -- sink 
-DROP TABLE buy_cnt_per_hour;
+-- DROP TABLE buy_cnt_per_hour;
 -- see https://github.com/garyfeng/flink-sql-demo/issues/1
 --   for why you can't use localhost here
 CREATE TABLE buy_cnt_per_hour ( 
@@ -90,3 +99,58 @@ GROUP BY time_str;
 
 ------
 
+-- 在 SQL CLI 中创建 MySQL 表，后续用作维表查询。
+CREATE TABLE category_dim (
+    sub_category_id BIGINT,  -- 子类目
+    parent_category_id BIGINT -- 顶级类目
+) WITH (
+    'connector.type' = 'jdbc',
+    'connector.url' = 'jdbc:mysql://192.168.56.1:3306/flink',
+    'connector.table' = 'category',
+    'connector.driver' = 'com.mysql.jdbc.Driver',
+    'connector.username' = 'root',
+    'connector.password' = '123456',
+    'connector.lookup.cache.max-rows' = '5000',
+    'connector.lookup.cache.ttl' = '10min'
+);
+
+-- 同时我们再创建一个 Elasticsearch 表，用于存储类目统计结果。
+
+CREATE TABLE top_category (
+    category_name STRING,  -- 类目名称
+    buy_cnt BIGINT  -- 销量
+) WITH (
+    'connector.type' = 'elasticsearch',
+    'connector.version' = '6',
+    'connector.hosts' = 'http://192.168.56.1:9200',
+    'connector.index' = 'top_category',
+    'connector.document-type' = 'user_behavior',
+    'format.type' = 'json',
+    'update-mode' = 'upsert'
+);
+
+-- 第一步我们通过维表关联，补全类目名称。我们仍然使用 CREATE VIEW 将该查询注册成一个视图，简化逻辑。维表关联使用 temporal join 语法，可以查看文档了解更多：https://ci.apache.org/projects/flink/flink-docs-release-1.10/dev/table/streaming/joins.html#join-with-a-temporal-table
+
+CREATE VIEW rich_user_behavior AS
+SELECT U.user_id, U.item_id, U.behavior, 
+  CASE C.parent_category_id
+    WHEN 1 THEN '服饰鞋包'
+    WHEN 2 THEN '家装家饰'
+    WHEN 3 THEN '家电'
+    WHEN 4 THEN '美妆'
+    WHEN 5 THEN '母婴'
+    WHEN 6 THEN '3C数码'
+    WHEN 7 THEN '运动户外'
+    WHEN 8 THEN '食品'
+    ELSE '其他'
+  END AS category_name
+FROM user_behavior AS U LEFT JOIN category_dim FOR SYSTEM_TIME AS OF U.proctime AS C
+ON U.category_id = C.sub_category_id;
+
+-- 最后根据 类目名称分组，统计出 buy 的事件数，并写入 Elasticsearch 中。
+
+INSERT INTO top_category
+SELECT category_name, COUNT(*) buy_cnt
+FROM rich_user_behavior
+WHERE behavior = 'buy'
+GROUP BY category_name;
