@@ -99,8 +99,8 @@ RUN echo "$LOG_TAG Install R related packages" && \
     Rscript -e "library('devtools'); library('Rcpp'); install_github('ramnathv/rCharts')"
 
 # Install kubectl
-RUN apt-get install -y apt-transport-https && \
-    curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - && \
+RUN apt-get update && apt-get install -y apt-transport-https 
+RUN curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - && \
     echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | tee -a /etc/apt/sources.list.d/kubernetes.list && \
     apt-get update && \
     apt-get install -y kubectl
@@ -124,11 +124,54 @@ RUN echo "$LOG_TAG Download Zeppelin binary" && \
     # Allow process to create new folders (e.g. webapps)
     chmod 775 ${Z_HOME}
 
+# Gary Feng: Install local Flink 1.10
+# from https://github.com/apache/flink-docker/blob/346809e6cab2ca0ac702fb4d2bf56afb6ee3c437/1.10/scala_2.11-debian/Dockerfile
+# Install dependencies
+RUN set -ex; \
+  apt-get update; \
+  apt-get -y install libsnappy1v5 gettext-base; \
+  rm -rf /var/lib/apt/lists/*
+
+# Configure Flink version
+ENV FLINK_VERSION=1.10.0 \
+    SCALA_VERSION=2.11 \
+    GPG_KEY=BB137807CEFBE7DD2616556710B12A1F89C115E8
+
+# Prepare environment
+ENV FLINK_HOME=/opt/flink
+ENV PATH=$FLINK_HOME/bin:$PATH
+# RUN groupadd --system --gid=9999 flink && \
+#     useradd --system --home-dir $FLINK_HOME --uid=9999 --gid=flink flink
+WORKDIR $FLINK_HOME
+
+ENV FLINK_URL_FILE_PATH=flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-scala_${SCALA_VERSION}.tgz
+# Not all mirrors have the .asc files
+ENV FLINK_TGZ_URL=https://www.apache.org/dyn/closer.cgi?action=download&filename=${FLINK_URL_FILE_PATH} \
+    FLINK_ASC_URL=https://www.apache.org/dist/${FLINK_URL_FILE_PATH}.asc
+
+# Install Flink
+RUN set -ex; \
+  wget -nv -O flink.tgz "$FLINK_TGZ_URL"; \
+  wget -nv -O flink.tgz.asc "$FLINK_ASC_URL";
+
+RUN  tar -xf flink.tgz --strip-components=1; \
+  rm flink.tgz; \
+  \
+  chmod -R 775 "${FLINK_HOME}/log" "${FLINK_HOME}/conf" "${FLINK_HOME}/lib" && \
+  chown -R 775 $FLINK_HOME;
+
+# install https://repo1.maven.org/maven2/org/apache/flink/flink-shaded-hadoop-2/2.8.3-10.0/flink-shaded-hadoop-2-2.8.3-10.0.jar
+RUN wget -P /opt/flink/lib https://repo1.maven.org/maven2/org/apache/flink/flink-shaded-hadoop-2/2.8.3-10.0/flink-shaded-hadoop-2-2.8.3-10.0.jar
+
+WORKDIR /
+
+# end Gary Feng
+
 COPY log4j.properties ${Z_HOME}/conf/
 
 USER 1000
 
-EXPOSE 8080
+EXPOSE 6123 8081 8080
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
 WORKDIR ${Z_HOME}
