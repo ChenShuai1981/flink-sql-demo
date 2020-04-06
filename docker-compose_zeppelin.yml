@@ -5,8 +5,8 @@ services:
   zeppelin:
     build: zeppelin
     image: zeppelin09p
-    depends_on:
-      - jobmanager
+    # depends_on:
+    #   - jobmanager
     ports:
       - 8080:8080
     volumes:
@@ -22,30 +22,50 @@ services:
     # environment:
     #   - JOB_MANAGER_RPC_ADDRESS=jobmanager
   # flink job manager and task manager
-  jobmanager:
-    # build: flinkcli
-    image: flink:1.10.0-scala_2.11
-    command: "jobmanager.sh start-foreground"
+  # jobmanager:
+  #   # build: flinkcli
+  #   image: flink:1.10.0-scala_2.11
+  #   command: "jobmanager.sh start-foreground"
+  #   ports:
+  #     - 8081:8081
+  #   volumes:
+  #     - ./conf:/opt/flink/conf
+  #     - flink-checkpoints-directory:/tmp/flink-checkpoints-directory
+  #     - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
+  #   environment:
+  #     - JOB_MANAGER_RPC_ADDRESS=jobmanager
+  # taskmanager:
+  #   image: flink:1.10.0-scala_2.11
+  #   depends_on:
+  #     - jobmanager
+  #   command: "taskmanager.sh start-foreground"
+  #   volumes:
+  #     - ./conf:/opt/flink/conf
+  #     - flink-checkpoints-directory:/tmp/flink-checkpoints-directory
+  #     - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
+  #   environment:
+  #     - JOB_MANAGER_RPC_ADDRESS=jobmanager
+  # Kafka and zookeeper      
+  zookeeper:
+    image: wurstmeister/zookeeper:3.4.6
     ports:
-      - 8081:8081
-    volumes:
-      - ./conf:/opt/flink/conf
-      - flink-checkpoints-directory:/tmp/flink-checkpoints-directory
-      - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
-    environment:
-      - JOB_MANAGER_RPC_ADDRESS=jobmanager
-  taskmanager:
-    image: flink:1.10.0-scala_2.11
+      - "2181:2181"
+  kafka:
+    image: wurstmeister/kafka:2.12-2.2.1
+    ports:
+      - "9092:9092"
+      - "9094:9094"
     depends_on:
-      - jobmanager
-    command: "taskmanager.sh start-foreground"
-    volumes:
-      - ./conf:/opt/flink/conf
-      - flink-checkpoints-directory:/tmp/flink-checkpoints-directory
-      - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
+      - zookeeper
     environment:
-      - JOB_MANAGER_RPC_ADDRESS=jobmanager
-
+      - KAFKA_ADVERTISED_LISTENERS=INSIDE://:9094,OUTSIDE://localhost:9092
+      - KAFKA_LISTENERS=INSIDE://:9094,OUTSIDE://:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=INSIDE
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CREATE_TOPICS="user_behavior:1:1"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 volumes:
   flink-checkpoints-directory:
       
