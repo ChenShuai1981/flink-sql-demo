@@ -20,6 +20,8 @@
 --   108016,483057,1868423,pv,1511712207
 --   ...
 
+DROP TABLE  IF EXISTS user_behavior;
+
 CREATE TABLE user_behavior (
     user_id BIGINT,
     item_id BIGINT,
@@ -42,7 +44,7 @@ CREATE TABLE user_behavior (
 
 
 -- sink 
--- DROP TABLE buy_cnt_per_hour;
+DROP TABLE  IF EXISTS buy_cnt_per_hour;
 -- see https://github.com/garyfeng/flink-sql-demo/issues/1
 --   for why you can't use localhost here
 CREATE TABLE buy_cnt_per_hour ( 
@@ -69,6 +71,7 @@ GROUP BY TUMBLE(ts, INTERVAL '1' HOUR);
 
 
 ------
+DROP TABLE  IF EXISTS cumulative_uv;
 
 CREATE TABLE cumulative_uv (
     time_str STRING,
@@ -100,6 +103,8 @@ GROUP BY time_str;
 ------
 
 -- 在 SQL CLI 中创建 MySQL 表，后续用作维表查询。
+DROP TABLE  IF EXISTS category_dim;
+
 CREATE TABLE category_dim (
     sub_category_id BIGINT,  -- 子类目
     parent_category_id BIGINT -- 顶级类目
