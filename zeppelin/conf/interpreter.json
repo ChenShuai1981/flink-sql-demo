@@ -1833,19 +1833,19 @@
         },
         "flink.execution.mode": {
           "name": "flink.execution.mode",
-          "value": "local",
+          "value": "remote",
           "type": "string",
           "description": "Execution mode, it could be local|remote|yarn"
         },
         "flink.execution.remote.host": {
           "name": "flink.execution.remote.host",
-          "value": "",
+          "value": "192.168.56.1",
           "type": "string",
           "description": "Host name of running JobManager. Only used for remote mode"
         },
         "flink.execution.remote.port": {
           "name": "flink.execution.remote.port",
-          "value": "",
+          "value": "8082",
           "type": "number",
           "description": "Port of running JobManager. Only used for remote mode"
         },
