@@ -1821,7 +1821,7 @@
         },
         "HADOOP_CONF_DIR": {
           "name": "HADOOP_CONF_DIR",
-          "value": "",
+          "value": "/opt/flink/lib",
           "type": "string",
           "description": "Location of hadoop conf (core-site.xml, hdfs-site.xml and etc.)"
         },

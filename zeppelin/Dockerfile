@@ -160,9 +160,6 @@ RUN  tar -xf flink.tgz --strip-components=1; \
   chmod -R 775 "${FLINK_HOME}/log" "${FLINK_HOME}/conf" "${FLINK_HOME}/lib" && \
   chown -R 775 $FLINK_HOME;
 
-# install https://repo1.maven.org/maven2/org/apache/flink/flink-shaded-hadoop-2/2.8.3-10.0/flink-shaded-hadoop-2-2.8.3-10.0.jar
-RUN wget -P /opt/flink/lib https://repo1.maven.org/maven2/org/apache/flink/flink-shaded-hadoop-2/2.8.3-10.0/flink-shaded-hadoop-2-2.8.3-10.0.jar
-
 # install Jupyter etc.
 RUN pip install -q jupyter grpcio protobuf
 
@@ -192,6 +189,7 @@ RUN wget -P ./lib/ https://repo1.maven.org/maven2/mysql/mysql-connector-java/5.1
     wget -P ./lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-metrics-prometheus_2.11/1.10.0/flink-metrics-prometheus_2.11-1.10.0.jar | \
     wget -P ./lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-parquet_2.11/1.10.0/flink-parquet_2.11-1.10.0.jar | \
     wget -P ./lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-python_2.11/1.10.0/flink-python_2.11-1.10.0.jar | \
+    wget -P ./lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar | \
     wget -P ./lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka_2.11/1.10.0/flink-sql-connector-kafka_2.11-1.10.0.jar | \
     wget -P ./lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6_2.11/1.10.0/flink-sql-connector-elasticsearch6_2.11-1.10.0.jar | \
     wget -P ./lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-table-planner_2.11/1.10.0/flink-table-planner_2.11-1.10.0.jar | \
