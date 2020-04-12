@@ -8,7 +8,10 @@ services:
     # depends_on:
     #   - jobmanager
     ports:
+      # zeppelin web UI
       - 8080:8080
+      # local Flink jobmaster
+      - 8081:8081
     volumes:
       # we copied the conf out: `docker cp df7baadfdb2f:/zeppelin/conf .`
       - ./zeppelin/conf:/zeppelin/conf
@@ -21,31 +24,44 @@ services:
     #   - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
     # environment:
     #   - JOB_MANAGER_RPC_ADDRESS=jobmanager
-  # flink job manager and task manager
-  jobmanager:
-    build: flinkcli
-    # image: flink:1.10.0-scala_2.11
-    image: flinkcli
-    command: "jobmanager.sh start-foreground"
-    ports:
-      - 8081:8081
-    volumes:
-      - ./conf:/opt/flink/conf
-      - flink-checkpoints-directory:/tmp/flink-checkpoints-directory
-      - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
-    environment:
-      - JOB_MANAGER_RPC_ADDRESS=jobmanager
-  taskmanager:
-    image: flinkcli
+  
+  # prepare data, including the datagen that sends data to kafka
+  # and mysql that provides a dimension data
+  datagen:
+    # We can build the docker image or use the jark/datagen image
+    # build: datagen
+    image: jark/datagen:0.1
+    command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 1000"
     depends_on:
-      - jobmanager
-    command: "taskmanager.sh start-foreground"
-    volumes:
-      - ./conf:/opt/flink/conf
-      - flink-checkpoints-directory:/tmp/flink-checkpoints-directory
-      - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
+      - kafka
     environment:
-      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+      ZOOKEEPER_CONNECT: zookeeper
+      KAFKA_BOOTSTRAP: kafka
+  # flink job manager and task manager
+  # jobmanager:
+  #   build: flinkcli
+  #   # image: flink:1.10.0-scala_2.11
+  #   image: flinkcli
+  #   command: "jobmanager.sh start-foreground"
+  #   ports:
+  #     - 8081:8081
+  #   volumes:
+  #     - ./conf:/opt/flink/conf
+  #     - flink-checkpoints-directory:/tmp/flink-checkpoints-directory
+  #     - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
+  #   environment:
+  #     - JOB_MANAGER_RPC_ADDRESS=jobmanager
+  # taskmanager:
+  #   image: flinkcli
+  #   depends_on:
+  #     - jobmanager
+  #   command: "taskmanager.sh start-foreground"
+  #   volumes:
+  #     - ./conf:/opt/flink/conf
+  #     - flink-checkpoints-directory:/tmp/flink-checkpoints-directory
+  #     - /tmp/flink-savepoints-directory:/tmp/flink-savepoints-directory
+  #   environment:
+  #     - JOB_MANAGER_RPC_ADDRESS=jobmanager
   # Kafka and zookeeper      
   zookeeper:
     image: wurstmeister/zookeeper:3.4.6
@@ -59,7 +75,8 @@ services:
     depends_on:
       - zookeeper
     environment:
-      - KAFKA_ADVERTISED_LISTENERS=INSIDE://:9094,OUTSIDE://localhost:9092
+      # - KAFKA_ADVERTISED_LISTENERS=INSIDE://:9094,OUTSIDE://localhost:9092
+      - KAFKA_ADVERTISED_LISTENERS=INSIDE://:9094,OUTSIDE://:9092
       - KAFKA_LISTENERS=INSIDE://:9094,OUTSIDE://:9092
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
       - KAFKA_INTER_BROKER_LISTENER_NAME=INSIDE
