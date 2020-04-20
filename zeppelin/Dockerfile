@@ -202,7 +202,10 @@ WORKDIR /
 
 COPY log4j.properties ${Z_HOME}/conf/
 
-USER 1000
+# gary feng: to allow Zeppelin to install python libraries using pip install
+# Running as root; security risk!!
+# USER 1000
+# RUN  chmod -R 775 "/.cache" "/.local" 
 
 EXPOSE 6123 8081 8080
 
